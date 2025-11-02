@@ -26,6 +26,9 @@ public class Graph {
     }
 
     public List<Edge> getNeighbors(int node) {
+        if (adjList == null) {
+            buildGraph();
+        }
         return adjList.get(node);
     }
 
