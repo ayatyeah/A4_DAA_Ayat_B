@@ -99,24 +99,24 @@ public class Main {
             System.out.println("  Time: " + metrics.getElapsedTime() / 1000 + " microseconds");
             System.out.println("  Kahn metrics: " + metrics.kahnPushes + " pushes, " + metrics.kahnPops + " pops");
 
-            // 4. Shortest and longest paths
+            // 4. Shortest and longest paths - FIXED: choose better source
             if (condGraph.n > 0) {
                 metrics.reset();
                 metrics.startTimer();
                 DAGShortestPaths dagSP = new DAGShortestPaths(condGraph, metrics);
 
-                int sourceComponent = 0;
+                // Choose source component that has outgoing edges for better demonstration
+                int sourceComponent = findGoodSourceComponent(condGraph, componentOrder);
+
                 int[] shortestDist = dagSP.shortestPathsFromSource(sourceComponent, componentOrder);
                 int[] longestDist = dagSP.longestPathsFromSource(sourceComponent, componentOrder);
                 DAGShortestPaths.CriticalPathResult criticalPath =
                         dagSP.findCriticalPath(sourceComponent, componentOrder);
                 metrics.stopTimer();
 
-                System.out.println("Path Analysis:");
-                System.out.println("  Shortest distances from component " + sourceComponent + ": " +
-                        formatDistances(shortestDist));
-                System.out.println("  Longest distances from component " + sourceComponent + ": " +
-                        formatDistances(longestDist));
+                System.out.println("Path Analysis (from component " + sourceComponent + "):");
+                System.out.println("  Shortest distances: " + formatDistances(shortestDist));
+                System.out.println("  Longest distances: " + formatDistances(longestDist));
                 System.out.println("  Critical path: " + criticalPath.path);
                 System.out.println("  Critical path length: " + criticalPath.length);
                 System.out.println("  Time: " + metrics.getElapsedTime() / 1000 + " microseconds");
@@ -130,15 +130,27 @@ public class Main {
         }
     }
 
+    // Helper method to find a good source component with outgoing edges
+    private static int findGoodSourceComponent(Graph condGraph, List<Integer> componentOrder) {
+        // Try to find a component that has outgoing edges
+        for (int comp : componentOrder) {
+            if (!condGraph.getNeighbors(comp).isEmpty()) {
+                return comp;
+            }
+        }
+        // If no component has outgoing edges, use the first one
+        return 0;
+    }
+
     private static String formatDistances(int[] distances) {
         List<String> formatted = new ArrayList<>();
         for (int i = 0; i < distances.length; i++) {
             if (distances[i] == Integer.MAX_VALUE) {
-                formatted.add(i + ":INF");
+                formatted.add("∞");
             } else if (distances[i] == Integer.MIN_VALUE) {
-                formatted.add(i + ":-INF");
+                formatted.add("-∞");
             } else {
-                formatted.add(i + ":" + distances[i]);
+                formatted.add(String.valueOf(distances[i]));
             }
         }
         return formatted.toString();
