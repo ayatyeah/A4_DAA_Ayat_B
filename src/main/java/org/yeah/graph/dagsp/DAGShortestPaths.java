@@ -42,7 +42,6 @@ public class DAGShortestPaths {
         dist[source] = 0;
 
         // For longest path, we can invert weights and find shortest path
-        // Or modify the relaxation to maximize
         for (int node : topologicalOrder) {
             if (dist[node] != Integer.MIN_VALUE) {
                 for (Edge edge : graph.getNeighbors(node)) {

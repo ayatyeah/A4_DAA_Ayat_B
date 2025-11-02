@@ -13,7 +13,7 @@ public class GraphGenerator {
 
     public static void main(String[] args) {
         generateAllDatasets();
-        System.out.println("✅ All datasets generated successfully!");
+        System.out.println("All datasets generated successfully!");
     }
 
     public static void generateAllDatasets() {
