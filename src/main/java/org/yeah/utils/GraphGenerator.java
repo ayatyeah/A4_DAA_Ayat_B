@@ -17,29 +17,31 @@ public class GraphGenerator {
     }
 
     public static void generateAllDatasets() {
-        // Small graphs (6-10 nodes)
-        generateDataset("small1", 6, 8, true);
-        generateDataset("small2", 8, 12, false);
-        generateDataset("small3", 10, 15, true);
+        // Small graphs - mixed density and types
+        generateDataset("small1", 6, 8, true);           // sparse cyclic
+        generateDenseDataset("small2", 8, 20, false);    // DENSE acyclic
+        generateDataset("small3", 10, 15, true);         // sparse cyclic
 
-        // Medium graphs (10-20 nodes)
-        generateDataset("medium1", 12, 18, true);
-        generateDataset("medium2", 15, 25, false);
-        generateDataset("medium3", 18, 30, true);
+        // Medium graphs - mixed density and types
+        generateDataset("medium1", 12, 18, true);        // sparse cyclic
+        generateDenseDataset("medium2", 15, 45, false);  // DENSE acyclic
+        generateDataset("medium3", 18, 30, true);        // sparse cyclic
 
-        // Large graphs (20-50 nodes)
-        generateDataset("large1", 20, 35, true);
-        generateDataset("large2", 30, 50, false);
-        generateDataset("large3", 40, 70, true);
+        // Large graphs - mixed density and types
+        generateDataset("large1", 20, 35, true);         // sparse cyclic
+        generateDenseDataset("large2", 30, 120, false);  // DENSE acyclic
+        generateDataset("large3", 40, 70, true);         // sparse cyclic
     }
 
-    public static void generateDataset(String name, int nodes, int edges, boolean includeCycles) {
+    public static void generateDataset(String name, int nodes, int targetEdges, boolean includeCycles) {
         Graph graph = createBaseGraph(nodes);
         Set<String> existingEdges = new HashSet<>();
 
-        // Ensure connectivity for DAG parts
+        System.out.println("Generating " + name + ": " + nodes + " nodes, target: " + targetEdges + " edges");
+
+        // Phase 1: Create base structure
         if (nodes > 1) {
-            // Create a base DAG structure
+            // Create a connected base structure
             for (int i = 0; i < nodes - 1; i++) {
                 int j = i + 1 + random.nextInt(nodes - i - 1);
                 if (j < nodes) {
@@ -48,7 +50,7 @@ public class GraphGenerator {
             }
         }
 
-        // Add cycles if requested
+        // Phase 2: Add cycles if requested
         if (includeCycles && nodes >= 3) {
             int cycles = 1 + random.nextInt(2);
             for (int c = 0; c < cycles; c++) {
@@ -56,16 +58,43 @@ public class GraphGenerator {
             }
         }
 
-        // Fill remaining edges randomly
-        while (graph.edges.size() < edges) {
+        // Phase 3: Aggressive edge addition to reach target
+        int maxPossibleEdges = nodes * (nodes - 1); // maximum possible edges in directed graph
+        int actualTarget = Math.min(targetEdges, maxPossibleEdges);
+
+        System.out.println("  Current edges: " + graph.edges.size() + ", target: " + actualTarget);
+
+        // Add edges more aggressively
+        int attempts = 0;
+        while (graph.edges.size() < actualTarget && attempts < maxPossibleEdges * 3) {
             int u = random.nextInt(nodes);
             int v = random.nextInt(nodes);
 
-            // Avoid self-loops for simplicity
-            if (u != v && random.nextDouble() > 0.1) {
-                addEdge(graph, existingEdges, u, v, 1 + random.nextInt(5));
+            if (u != v) {
+                // For dense graphs, accept most edges
+                if (random.nextDouble() < 0.8) {
+                    addEdge(graph, existingEdges, u, v, 1 + random.nextInt(5));
+                }
+            }
+            attempts++;
+
+            // Early exit if we're close to target
+            if (graph.edges.size() >= actualTarget) break;
+        }
+
+        // Final attempt: if still not enough edges, try systematic approach
+        if (graph.edges.size() < actualTarget) {
+            for (int u = 0; u < nodes && graph.edges.size() < actualTarget; u++) {
+                for (int v = 0; v < nodes && graph.edges.size() < actualTarget; v++) {
+                    if (u != v) {
+                        addEdge(graph, existingEdges, u, v, 1 + random.nextInt(5));
+                    }
+                }
             }
         }
+
+        System.out.println("  Final edges: " + graph.edges.size() + ", density: " +
+                String.format("%.1f%%", (graph.edges.size() * 100.0) / maxPossibleEdges));
 
         // Save to file
         saveGraphToFile(graph, name, nodes);
@@ -93,7 +122,7 @@ public class GraphGenerator {
 
     private static void addEdge(Graph graph, Set<String> existingEdges, int u, int v, int weight) {
         String edgeKey = u + "->" + v;
-        if (!existingEdges.contains(edgeKey) && graph.edges.size() < graph.n * 2) {
+        if (!existingEdges.contains(edgeKey)) {
             graph.edges.add(new Edge(u, v, weight));
             existingEdges.add(edgeKey);
         }
@@ -165,5 +194,52 @@ public class GraphGenerator {
         }
 
         return graph;
+    }
+
+    public static void generateDenseDataset(String name, int nodes, int targetEdges, boolean includeCycles) {
+        Graph graph = createBaseGraph(nodes);
+        Set<String> existingEdges = new HashSet<>();
+
+        System.out.println("Generating DENSE " + name + ": " + nodes + " nodes, target: " + targetEdges + " edges");
+
+        // Phase 1: Create systematic edges to ensure density
+        int edgesAdded = 0;
+        for (int u = 0; u < nodes && edgesAdded < targetEdges; u++) {
+            for (int v = 0; v < nodes && edgesAdded < targetEdges; v++) {
+                if (u != v) {
+                    // For dense graphs, add edge with high probability
+                    if (random.nextDouble() < 0.6) { // 60% chance for each possible edge
+                        addEdge(graph, existingEdges, u, v, 1 + random.nextInt(5));
+                        edgesAdded = graph.edges.size();
+                    }
+                }
+            }
+        }
+
+        // Phase 2: If still not enough, add random edges aggressively
+        while (graph.edges.size() < targetEdges) {
+            int u = random.nextInt(nodes);
+            int v = random.nextInt(nodes);
+            if (u != v) {
+                addEdge(graph, existingEdges, u, v, 1 + random.nextInt(5));
+            }
+
+            // Safety break
+            if (graph.edges.size() >= nodes * (nodes - 1) * 0.8) break;
+        }
+
+        // Phase 3: Add cycles if requested
+        if (includeCycles && nodes >= 3) {
+            int cycles = 1 + random.nextInt(2);
+            for (int c = 0; c < cycles; c++) {
+                createCycle(graph, existingEdges, nodes);
+            }
+        }
+
+        int maxPossible = nodes * (nodes - 1);
+        double density = (graph.edges.size() * 100.0) / maxPossible;
+        System.out.println("  Final: " + graph.edges.size() + " edges, density: " + String.format("%.1f%%", density));
+
+        saveGraphToFile(graph, name, nodes);
     }
 }

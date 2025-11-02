@@ -146,9 +146,9 @@ public class Main {
         List<String> formatted = new ArrayList<>();
         for (int i = 0; i < distances.length; i++) {
             if (distances[i] == Integer.MAX_VALUE) {
-                formatted.add("∞");
+                formatted.add("INF");
             } else if (distances[i] == Integer.MIN_VALUE) {
-                formatted.add("-∞");
+                formatted.add("-INF");
             } else {
                 formatted.add(String.valueOf(distances[i]));
             }
